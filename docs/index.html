@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Circle Diagram</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 20px;
+      background: #f8f8f8;
+    }
+    canvas {
+      background: transparent;
+    }
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      width: 100%;
+      max-width: 800px;
+    }
+    .floating-controls {
+      position: fixed;
+      z-index: 1000;
+      background: #fff;
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      border-radius: 6px;
+      width: 840px;
+      box-sizing: border-box;
+      left: 20px;
+      bottom: 20px;
+      top: auto;
+      right: auto;
+    }
+
+    .drag-handle {
+      background: #ddd;
+      padding: 6px 12px;
+      font-weight: bold;
+      cursor: move;
+      border-radius: 6px 6px 0 0;
+      user-select: none;
+    }
+    .snap-btn {
+      float: right;
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .controls label {
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+    }
+    .controls input[type="range"],
+    .controls input[type="number"],
+    .controls select,
+    .controls textarea {
+      margin-top: 4px;
+    }
+    .controls input[type="range"],
+    .controls input[type="number"],
+    .controls select,
+    .controls textarea {
+      max-width: 700px;
+      width: 100%;
+      box-sizing: border-box;
+      display: block;
+    }
+    .controls #customInputLabel {
+      /* Custom style set inline below */
+    }
+    .controls button,
+    .settings-btn {
+      align-self: end;
+      justify-self: start;
+      margin-top: 0;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      height: fit-content;
+      min-width: 120px;
+      box-sizing: border-box;
+    }
+    /* --- Settings tab fieldset styling --- */
+    .settings-fieldset {
+      margin-bottom: 15px;
+      padding: 10px 18px 18px 18px;
+      border-radius: 8px;
+      border: 1.5px solid #ccc;
+      background: #fafbfc;
+      text-align: center;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .settings-fieldset legend {
+      font-weight: bold;
+      font-size: 15px;
+      padding: 0 12px;
+    }
+    .settings-btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      margin-top: 4px;
+    }
+    .settings-input-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      margin-top: 4px;
+    }
+    .settings-fieldset input[type="text"], .settings-fieldset select {
+      min-width: 120px;
+      margin-bottom: 0;
+    }
+    /* --- Tab bar CSS --- */
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab-bar .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: #eee;
+      border-radius: 4px 4px 0 0;
+      font-weight: bold;
+    }
+    .tab-bar .tab.active {
+      background: #fff;
+      border-bottom: 1px solid #fff;
+    }
+    .tab-content {
+      display: none;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-top: none;
+      padding: 16px;
+      background: white;
+      border-radius: 0 0 4px 4px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    /* Add spacing between form controls inside each .tab-content panel */
+    .tab-content label,
+    .tab-content > div:not(.tab-bar) {
+      margin-bottom: 16px;
+    }
+    /* Preset input styling */
+    #presetNameInput {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    /* --- Dark mode styles --- */
+    body.dark-mode {
+      background: #1e1e1e;
+      color: #eee;
+    }
+    body.dark-mode .controls,
+    body.dark-mode .floating-controls,
+    body.dark-mode .tab-content,
+    body.dark-mode .settings-fieldset {
+      background: #2b2b2b;
+      border-color: #555;
+    }
+    body.dark-mode .tab-bar .tab {
+      background: #444;
+      color: #eee;
+    }
+    body.dark-mode .tab-bar .tab.active {
+      background: #2b2b2b;
+      border-color: #555;
+    }
+    body.dark-mode .drag-handle {
+      background: #333;
+    }
+    /* Proper dark mode styling for Polygon controls */
+    body.dark-mode #polygonTab .polygon-controls {
+      background-color: #2a2a2a !important;
+      border-color: #555 !important;
+      color: #eee !important;
+    }
+
+    body.dark-mode #polygonTab .polygon-controls * {
+      background-color: transparent !important;
+      color: #eee !important;
+      border-color: #555 !important;
+    }
+
+    /* --- Unified dark mode input/button styling for full and controls-only dark mode --- */
+    body.dark-mode input,
+    body.dark-mode select,
+    body.dark-mode button,
+    body.dark-controls-only .floating-controls input,
+    body.dark-controls-only .floating-controls select,
+    body.dark-controls-only .floating-controls button {
+      background-color: #333;
+      color: #eee;
+      border: 1px solid #666;
+    }
+    body.dark-mode input::placeholder,
+    body.dark-controls-only .floating-controls input::placeholder {
+      color: #999;
+    }
+
+    /* --- Dark mode for floating controls only --- */
+    body.dark-controls-only .floating-controls {
+      background: #2b2b2b;
+      color: #eee;
+      border-color: #555;
+    }
+    body.dark-controls-only .floating-controls input,
+    body.dark-controls-only .floating-controls select,
+    body.dark-controls-only .floating-controls textarea,
+    body.dark-controls-only .floating-controls label {
+      color: #eee;
+      background-color: #2b2b2b;
+      border-color: #555;
+    }
+    body.dark-controls-only .floating-controls .tab-content {
+      background: #2b2b2b;
+    }
+    /* --- Extended dark-controls-only for full dark UI in controls --- */
+    body.dark-controls-only .floating-controls .tab-bar .tab {
+      background: #444;
+      color: #eee;
+      border-color: #555;
+    }
+    body.dark-controls-only .floating-controls .tab-bar .tab.active {
+      background: #2b2b2b;
+      border-color: #555;
+    }
+    body.dark-controls-only .floating-controls .tab-content {
+      background: #2b2b2b;
+      color: #eee;
+      border-color: #555;
+    }
+    body.dark-controls-only .floating-controls .settings-fieldset {
+      background: #2b2b2b;
+      color: #eee;
+      border-color: #555;
+    }
+    body.dark-controls-only .floating-controls .settings-fieldset input,
+    body.dark-controls-only .floating-controls .settings-fieldset select,
+    body.dark-controls-only .floating-controls .settings-fieldset textarea {
+      background-color: #1e1e1e;
+      color: #eee;
+      border-color: #555;
+    }
+    /* The above unified rules will ensure all relevant input fields, selects, and standard buttons (not tab buttons) match the dark mode aesthetic in both full and controls-only dark mode. */
+    body.dark-controls-only .floating-controls input[type="radio"],
+    body.dark-controls-only .floating-controls input[type="checkbox"] {
+      accent-color: #888;
+    }
+
+    /* Match polygon tab styling to full dark mode */
+    body.dark-controls-only #polygonTab .polygon-controls {
+      background-color: #2a2a2a !important;
+      border-color: #555 !important;
+      color: #eee !important;
+    }
+
+    body.dark-controls-only #polygonTab .polygon-controls * {
+      background-color: transparent !important;
+      color: #eee !important;
+      border-color: #555 !important;
+    }
+
+    /* Match drag bar styling */
+    body.dark-controls-only .drag-handle {
+      background: #333;
+      color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h2>Circle Diagram Generator v2.0</h2>
+    <div class="floating-controls">
+      <div class="drag-handle">
+        Controls ✥ drag me
+        <button class="snap-btn" title="Snap to corner">📌</button>
+      </div>
+    <div class="controls">
+    <div class="tab-bar" style="gap: 8px 12px;">
+      <button class="tab active" data-tab="textInputTab">Text Input</button>
+      <button class="tab" data-tab="textStyleTab">Text Style</button>
+      <button class="tab" data-tab="circleTab">Circle</button>
+      <button class="tab" data-tab="titleTab">Title</button>
+      <button class="tab" data-tab="arrowsTab">Arrows</button>
+      <button class="tab" data-tab="polygonTab">Polygon</button>
+      <button class="tab" data-tab="tab-settings">Settings</button>
+      <!-- Export/Import/Download buttons row 1 -->
+      <div style="flex-basis: 100%; height: 0;"></div>
+      <button id="exportPngBtn" type="button" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">🖼️ Export PNG</button>
+      <button id="exportJpgBtn" type="button" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">🖼️ Export JPG</button>
+      <button id="exportPdfBtn" type="button" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">📄 Export PDF</button>
+      <button class="action-btn" data-action="exportFile">📥 Export File</button>
+      <button class="action-btn" data-action="importFile">📤 Import File</button>
+      <button id="toggleDarkModeBtn" type="button" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">🌓 Dark Mode</button>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none">
+    </div>
+    <div class="tab-content active" id="textInputTab">
+      <!-- Grouped controls for Text Input, styled for visual hierarchy and alignment -->
+      <fieldset class="settings-fieldset" style="margin-bottom:0; padding-bottom:10px; width:100%; box-sizing:border-box;">
+        <legend style="font-size:15px; text-align:left; padding-left:0; margin-bottom:8px;">Text Input</legend>
+        <!-- Notation Style row (radio buttons) -->
+        <div class="settings-input-row" style="margin-bottom:12px; width:100%; align-items:center;">
+          <label style="margin-bottom:0; min-width:130px; font-weight:500;">Notation Style</label>
+          <div id="notationRadioGroup" style="display:flex; gap:18px;">
+            <label><input type="radio" name="notationStyle" value="fifths"> Cycle of 5ths</label>
+            <label><input type="radio" name="notationStyle" value="chromatic"> Chromatic</label>
+            <label><input type="radio" name="notationStyle" value="majscale"> Major Scale Chords</label>
+            <label><input type="radio" name="notationStyle" value="relativeMinor"> Relative Minor Chords</label>
+            <label><input type="radio" name="notationStyle" value="custom"> Custom</label>
+          </div>
+        </div>
+        <!-- Custom Labels for Current Style: appears directly below radios for custom/majscale/relativeMinor -->
+        <div id="customInputLabel" style="display:none; width:100%; margin-bottom:16px;">
+          <label for="customLabels" style="font-weight:500; margin-bottom:6px;">Custom Labels for Current Style <span style="font-weight:400;">(comma-separated)</span></label>
+          <textarea id="customLabels" rows="2" style="width:100%; min-width:0; max-width:100%; margin-bottom:0; resize:vertical;">P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,P12</textarea>
+        </div>
+  <style>
+    body.dark-mode #customInputLabel textarea,
+    body.dark-controls-only .floating-controls #customInputLabel textarea {
+      background-color: #2b2b2b;
+      color: #ffffff;
+      border: 1px solid #888;
+    }
+  </style>
+        <!-- Flip Order and Rotation grouped row -->
+        <div id="flipRotationRow" class="settings-input-row" style="margin-bottom:16px; width:100%; align-items:center;">
+          <!-- Flip Order -->
+          <label for="flipCheckbox" style="display:flex; align-items:center; margin-bottom:0; margin-right:36px; font-weight:500;">
+            <input type="checkbox" id="flipCheckbox" style="margin-right:7px;"/>
+            Flip Order
+          </label>
+          <!-- Rotation -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label for="rotation" style="margin-bottom:0; font-weight:500; margin-right:6px;">Rotation (Degrees)</label>
+            <input type="range" id="rotation" min="0" max="360" value="0" style="width:110px; margin:0;"/>
+            <input type="number" id="rotationNum" min="0" max="360" value="0" style="width:60px; margin:0 0 0 4px;"/>
+          </div>
+        </div>
+        <!-- Individual Label Offsets collapsible -->
+        <div id="offsetsContainer" style="width:100%; margin-top:6px;">
+          <details id="offsetBox" style="width:100%;">
+            <summary style="cursor:pointer; font-weight:500; font-size:14px; margin-bottom:7px;">Individual Label Offsets (X&nbsp;/&nbsp;Y px)</summary>
+            <div id="offsetTable"
+                 style="display:grid;grid-template-columns:repeat(3, max-content);gap:4px 10px;font-size:13px; margin-top:8px;">
+            </div>
+          </details>
+        </div>
+      </fieldset>
+    </div>
+    <!-- Settings Tab Content -->
+    <div class="tab-content" id="tab-settings">
+      <!-- Autosave Options -->
+      <fieldset class="settings-fieldset">
+        <legend>Autosave Options</legend>
+        <div class="settings-btn-row">
+          <button id="clearAutosaveBtn" type="button" class="settings-btn">Clear Autosave</button>
+          <button id="resetDiagramBtn" type="button" class="settings-btn">Reset Diagram</button>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:500; margin-top:8px;">
+            <input type="checkbox" id="darkControlsOnly">
+            Dark Mode (Controls Only)
+          </label>
+        </div>
+      </fieldset>
+      <!-- Save New Preset -->
+      <fieldset class="settings-fieldset">
+        <legend>Save New Preset</legend>
+        <div class="settings-input-row">
+          <input type="text" id="presetCategoryInput" placeholder="Category">
+          <input type="text" id="presetNameInput" placeholder="Preset name">
+          <button id="savePresetBtn" class="settings-btn">💾 Save Preset</button>
+        </div>
+      </fieldset>
+      <!-- Load Preset -->
+      <fieldset class="settings-fieldset">
+        <legend>Load Preset</legend>
+        <div class="settings-input-row">
+          <select id="presetCategoryDropdown">
+            <option disabled selected>Select category...</option>
+          </select>
+          <select id="presetDropdown">
+            <option disabled selected>Select preset...</option>
+          </select>
+          <button id="loadPresetBtn" class="settings-btn">📂 Load</button>
+        </div>
+      </fieldset>
+      <!-- Manage Presets -->
+      <fieldset class="settings-fieldset">
+        <legend>Manage Presets</legend>
+        <div class="settings-btn-row">
+          <button id="deletePresetBtn" class="settings-btn">🗑️ Delete Preset</button>
+          <button id="renamePresetBtn" class="settings-btn">✏️ Rename Preset</button>
+          <button id="exportPresetsBtn" class="settings-btn">⬇️ Export Presets</button>
+          <input type="file" id="importPresetsInput" accept=".json" style="display: none;">
+          <button id="importPresetsBtn" class="settings-btn">⬆️ Import Presets</button>
+        </div>
+        <div class="settings-btn-row">
+          <button id="setDefaultPresetBtn" class="settings-btn">⭐ Set as Default</button>
+          <button id="clearDefaultPresetBtn" class="settings-btn">❌ Clear Default</button>
+        </div>
+      </fieldset>
+    </div>
+    <div class="tab-content" id="textStyleTab">
+      <!-- Text Style Tab: improved grouping and clarity -->
+      <fieldset class="settings-fieldset" style="margin-bottom:0; padding-bottom:12px; width:100%; box-sizing:border-box;">
+        <legend style="font-size:15px; text-align:left; padding-left:0; margin-bottom:8px;">Text Style Settings</legend>
+        <!-- Font Size group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="fontsize" style="font-weight:500; margin-bottom:5px;">Font Size</label>
+          <div style="display:flex; align-items:center; gap:12px; width:100%;">
+            <input type="range" id="fontsize" min="10" max="80" value="36" style="flex:2; min-width:90px;"/>
+            <input type="number" id="fontsizeNum" min="10" max="80" value="36" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Font dropdown group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="fontSelect" style="font-weight:500; margin-bottom:5px;">Font</label>
+          <select id="fontSelect" style="max-width:220px; min-width:130px;">
+            <option value="Quicksand" selected>Quicksand</option>
+            <option value="sans-serif">Sans Serif</option>
+            <option value="serif">Serif</option>
+            <option value="monospace">Monospace</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Roboto">Roboto</option>
+            <option value="Arial">Arial</option>
+            <option value="Futura">Futura</option>
+          </select>
+        </div>
+        <!-- Text Color group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="color" style="font-weight:500; margin-bottom:5px;">Text Color</label>
+          <input type="color" id="color" value="#000000" style="width:40px; height:30px;"/>
+        </div>
+        <!-- Text Radius group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="radius" style="font-weight:500; margin-bottom:5px;">Text Radius</label>
+          <div style="display:flex; align-items:center; gap:12px; width:100%;">
+            <input type="range" id="radius" min="100" max="500" value="400" style="flex:2; min-width:90px;"/>
+            <input type="number" id="radiusNum" min="100" max="500" value="400" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Show Text checkbox row -->
+        <div style="display:flex; align-items:center; margin-top:6px;">
+          <input type="checkbox" id="showText" style="margin-right:8px;"/>
+          <label for="showText" style="font-weight:500; margin-bottom:0; margin-right:0;">Show Text</label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="tab-content" id="circleTab">
+      <!-- Grouped controls for Circle Tab, styled for visual hierarchy and alignment -->
+      <fieldset class="settings-fieldset" style="margin-bottom:0; padding-bottom:12px; width:100%; box-sizing:border-box;">
+        <legend style="font-size:15px; text-align:left; padding-left:0; margin-bottom:8px;">Circle Settings</legend>
+        <!-- Circle Radius group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="circleRadius" style="font-weight:500; margin-bottom:5px;">Circle Radius</label>
+          <div style="display:flex; align-items:center; gap:12px; width:100%;">
+            <input type="range" id="circleRadius" min="50" max="500" value="350" style="flex:2; min-width:90px;"/>
+            <input type="number" id="circleRadiusNum" min="50" max="500" value="350" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Circle Thickness group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="circleThickness" style="font-weight:500; margin-bottom:5px;">Circle Thickness</label>
+          <div style="display:flex; align-items:center; gap:12px; width:100%;">
+            <input type="range" id="circleThickness" min="1" max="20" value="1" style="flex:2; min-width:90px;"/>
+            <input type="number" id="circleThicknessNum" min="1" max="20" value="1" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Circle Color group -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:14px;">
+          <label for="circleColor" style="font-weight:500; margin-bottom:5px;">Circle Color</label>
+          <input type="color" id="circleColor" value="#000000" style="width:40px; height:30px;"/>
+        </div>
+        <!-- Show Circle checkbox row -->
+        <div style="display:flex; align-items:center; margin-top:6px;">
+          <input type="checkbox" id="showCircle" style="margin-right:8px;"/>
+          <label for="showCircle" style="font-weight:500; margin-bottom:0; margin-right:0;">Show Circle</label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="tab-content" id="titleTab">
+      <!-- Title Tab: improved grouping, spacing, and alignment -->
+      <fieldset class="settings-fieldset" style="margin-bottom:0; padding-bottom:16px; width:100%; box-sizing:border-box;">
+        <legend style="font-size:15px; text-align:left; padding-left:0; margin-bottom:8px;">Title Settings</legend>
+        <!-- Title Text group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="titleText" style="font-weight:500; margin-bottom:5px;">Title Text</label>
+          <input type="text" id="titleText" value="My Diagram" style="min-width:130px; max-width:340px; width:100%; box-sizing:border-box; padding:5px 8px;"/>
+        </div>
+        <!-- Title Size group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="titleSize" style="font-weight:500; margin-bottom:5px;">Title Size</label>
+          <div style="display:flex; align-items:center; gap:14px; width:100%;">
+            <input type="range" id="titleSize" min="10" max="120" value="48" style="flex:2; min-width:90px;"/>
+            <input type="number" id="titleSizeNum" min="10" max="120" value="48" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Title Colour group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="titleColor" style="font-weight:500; margin-bottom:5px;">Title Colour</label>
+          <input type="color" id="titleColor" value="#000000" style="width:40px; height:30px;"/>
+        </div>
+        <!-- Title Font group -->
+        <div class="control-group" style="width:100%; margin-bottom:20px;">
+          <label for="titleFont" style="font-weight:500; margin-bottom:5px;">Title Font</label>
+          <select id="titleFont" style="max-width:220px; min-width:130px;">
+            <option value="Quicksand" selected>Quicksand</option>
+            <option value="sans-serif">Sans Serif</option>
+            <option value="serif">Serif</option>
+            <option value="monospace">Monospace</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Roboto">Roboto</option>
+            <option value="Arial">Arial</option>
+            <option value="Futura">Futura</option>
+          </select>
+        </div>
+        <!-- Show Title checkbox, with increased spacing above -->
+        <div class="control-group" style="display:flex; align-items:center; margin-top:8px;">
+          <input type="checkbox" id="showTitle" style="margin-right:8px;"/>
+          <label for="showTitle" style="font-weight:500; margin-bottom:0; margin-right:0;">Show Title</label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="tab-content" id="arrowsTab">
+      <!-- Grouped controls for Arrows Tab, styled for visual hierarchy and alignment -->
+      <fieldset class="settings-fieldset" style="margin-bottom:0; padding-bottom:12px; width:100%; box-sizing:border-box;">
+        <legend style="font-size:15px; text-align:left; padding-left:0; margin-bottom:8px;">Arrows Settings</legend>
+        <!-- Arrows Radius group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="arrowRadius" style="font-weight:500; margin-bottom:5px;">Arrows Radius</label>
+          <div style="display:flex; align-items:center; gap:14px; width:100%;">
+            <input type="range" id="arrowRadius" min="50" max="500" value="325" style="flex:2; min-width:90px;"/>
+            <input type="number" id="arrowRadiusNum" min="50" max="500" value="325" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Arrow Thickness group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="arrowThickness" style="font-weight:500; margin-bottom:5px;">Arrow Thickness</label>
+          <div style="display:flex; align-items:center; gap:14px; width:100%;">
+            <input type="range" id="arrowThickness" min="1" max="10" value="2" style="flex:2; min-width:90px;"/>
+            <input type="number" id="arrowThicknessNum" min="1" max="10" value="2" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Arrow Color group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="arrowColor" style="font-weight:500; margin-bottom:5px;">Arrow Color</label>
+          <input type="color" id="arrowColor" value="#000000" style="width:40px; height:30px;"/>
+        </div>
+        <!-- Number of Arrows group -->
+        <div class="control-group" style="width:100%; margin-bottom:16px;">
+          <label for="arrowCount" style="font-weight:500; margin-bottom:5px;">Number of Arrows</label>
+          <div style="display:flex; align-items:center; gap:14px; width:100%;">
+            <input type="range" id="arrowCount" min="1" max="12" value="1" style="flex:2; min-width:90px;"/>
+            <input type="number" id="arrowCountNum" min="1" max="12" value="1" style="width:60px;"/>
+          </div>
+        </div>
+        <!-- Show Arrows checkbox -->
+        <div class="control-group" style="display:flex; align-items:center; margin-top:8px;">
+          <input type="checkbox" id="showArrows" style="margin-right:8px;"/>
+          <label for="showArrows" style="font-weight:500; margin-bottom:0; margin-right:0;">Show Arrows</label>
+        </div>
+        <!-- Flip Arrow Direction checkbox -->
+        <div class="control-group" style="display:flex; align-items:center; margin-top:8px;">
+          <input type="checkbox" id="flipArrowCheckbox" style="margin-right:8px;"/>
+          <label for="flipArrowCheckbox" style="font-weight:500; margin-bottom:0; margin-right:0;">Flip Arrow Direction</label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="tab-content" id="polygonTab">
+      <!-- Polygon Settings: visually grouped and styled like other tabs -->
+      <fieldset class="settings-fieldset" style="margin-bottom:0; padding-bottom:12px; width:100%; box-sizing:border-box;">
+        <legend style="font-size:15px; text-align:left; padding-left:0; margin-bottom:8px;">Polygon Settings</legend>
+        <div class="polygon-controls" style="border:1.5px solid #ccc; border-radius:8px; background:#fafbfc; padding:16px 18px 10px 18px; margin-bottom:0; display:flex; flex-direction:column; gap:0;">
+          <!-- Polygon Color: Centered in its row -->
+          <div style="margin-bottom: 14px;">
+            <div style="margin-left:auto; margin-right:auto; display:block; text-align:center;">
+              <label for="polygonColor" style="font-weight:500; margin-bottom:5px; text-align:center; display:block;">Polygon Color</label>
+              <input type="color" id="polygonColor" value="#000000" style="width:40px; height:30px; margin-left:auto; margin-right:auto; display:block;"/>
+            </div>
+          </div>
+          <!-- Solid Polygon: Centered in its row -->
+          <div style="margin-bottom: 14px;">
+            <div style="margin-left:auto; margin-right:auto; display:block; text-align:center;">
+              <input type="checkbox" id="polyFill" style="margin-right:8px; margin-left:auto; margin-right:auto; display:inline-block;"/>
+              <label for="polyFill" style="font-weight:500; margin-bottom:0; margin-right:0; display:inline-block;">Solid Polygon</label>
+            </div>
+          </div>
+          <!-- Polygon Notation radio buttons -->
+          <div style="display:flex; flex-direction:column; align-items:flex-start; width:100%; margin-bottom:16px;">
+            <label style="font-weight:500; margin-bottom:5px;">Polygon Notation</label>
+            <div id="polygonNotationRadioGroup" style="display:flex; gap:18px;">
+              <label><input type="radio" name="polygonNotation" value="fifths"> Cycle of 5ths</label>
+              <label><input type="radio" name="polygonNotation" value="chromatic"> Chromatic</label>
+              <label><input type="radio" name="polygonNotation" value="custom"> Custom</label>
+            </div>
+          </div>
+          <!-- 12 tick-boxes in a grid -->
+          <div id="polyBox"
+               style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px 18px; width:100%; margin-bottom:22px; margin-top:2px;">
+          </div>
+          <!-- Show Polygon: Centered in its row, moved below all other polygon controls -->
+          <div style="margin-bottom: 14px;">
+            <div style="margin-left:auto; margin-right:auto; display:block; text-align:center;">
+              <input type="checkbox" id="showPolygon" style="margin-right:8px; margin-left:auto; margin-right:auto; display:inline-block;"/>
+              <label for="showPolygon" style="font-weight:500; margin-bottom:0; margin-right:0; display:inline-block;">Show Polygon</label>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+    <!-- Removed Export PNG and Export PDF tab content sections -->
+    </div>
+  </div>
+  <div style="grid-column: 2 / 3; grid-row: 1 / 2; justify-self: center;">
+    <canvas id="canvas" width="1080" height="1080"></canvas>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    let showCircle = true;
+    let showTitle = true;
+    let showText = true;
+    let showArrows = true;
+    let arrowDirection = 1; // 1 for clockwise, -1 for counterclockwise
+    let showPolygon = true;
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const circleThicknessSlider = document.getElementById("circleThickness");
+    const circleThicknessNum = document.getElementById("circleThicknessNum");
+    const radiusSlider = document.getElementById("radius");
+    const radiusNum = document.getElementById("radiusNum");
+    const fontsizeSlider = document.getElementById("fontsize");
+    const fontsizeNum = document.getElementById("fontsizeNum");
+    const rotationSlider = document.getElementById("rotation");
+    const rotationNum = document.getElementById("rotationNum");
+    // Notation radio group
+    const notationRadioGroup = document.getElementById("notationRadioGroup");
+    let notationStyleValue = "custom";
+    let customLabelCache = "P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,P12";
+    const colorPicker = document.getElementById("color");
+    const circleColorPicker = document.getElementById("circleColor");
+    const fontSelect = document.getElementById("fontSelect");
+    const circleRadiusSlider = document.getElementById("circleRadius");
+    const circleRadiusNum = document.getElementById("circleRadiusNum");
+    // Central Title controls
+    const titleInput   = document.getElementById("titleText");
+    const titleSizeR   = document.getElementById("titleSize");
+    const titleSizeN   = document.getElementById("titleSizeNum");
+    const titleColor   = document.getElementById("titleColor");
+    const titleFontSel = document.getElementById("titleFont");
+
+    // Arrow count controls
+    const arrowCountSlider = document.getElementById("arrowCount");
+    const arrowCountNum = document.getElementById("arrowCountNum");
+    const arrowRadiusSlider = document.getElementById("arrowRadius");
+    const arrowRadiusNum = document.getElementById("arrowRadiusNum");
+    const arrowColorPicker = document.getElementById("arrowColor");
+    const arrowThicknessSlider = document.getElementById("arrowThickness");
+    const arrowThicknessNum = document.getElementById("arrowThicknessNum");
+    // ToggleArrows function removed
+
+
+    // Flip arrow direction checkbox logic
+    document.getElementById("flipArrowCheckbox").addEventListener("change", function(e) {
+      arrowDirection = e.target.checked ? -1 : 1;
+      draw();
+    });
+
+
+    // per‑label offset arrays (12 labels)
+    const labelOffsetX = Array(12).fill(0);
+    const labelOffsetY = Array(12).fill(0);
+    const offsetTable = document.getElementById("offsetTable");
+
+    // build the 12×2 inputs
+    function buildOffsetControls(){
+      offsetTable.innerHTML = "";
+      for(let i=0;i<12;i++){
+        const name = document.createElement("span");
+        name.textContent = `L${i+1}`;
+        const xIn = document.createElement("input");
+        const yIn = document.createElement("input");
+        [xIn,yIn].forEach(inp=>{
+          inp.type  = "number";
+          inp.value = 0;
+          inp.min   = -200;
+          inp.max   =  200;
+          inp.style.width = "54px";
+        });
+        xIn.addEventListener("input", ()=>{ labelOffsetX[i]=+xIn.value||0; draw(); });
+        yIn.addEventListener("input", ()=>{ labelOffsetY[i]=+yIn.value||0; draw(); });
+        offsetTable.append(name,xIn,yIn);
+      }
+    }
+    buildOffsetControls();
+
+    const sets = {
+      fifths: ["C", "G", "D", "A", "E", "B", "F♯", "D♭", "A♭", "E♭", "B♭", "F"],
+      chromatic: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"],
+      majscale: ["maj7", "maj7", "ø7", "m7", "m7", "m7", "7"],
+      relativeMinor: ["m7", "m7", "7", "maj7", "maj7", "ø7", "m7"]
+    };
+
+    // Polygon generator control references
+    const polygonColorPicker = document.getElementById("polygonColor");
+    // Polygon Notation radio group
+    const polygonNotationRadioGroup = document.getElementById("polygonNotationRadioGroup");
+    let polygonNotationValue = "fifths";
+    const polyBox       = document.getElementById("polyBox");
+    const polyFill      = document.getElementById("polyFill");
+
+    // Label sets reused from main notation
+    const polySets = {
+      numeric : ['P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12'],
+      fifths : ['C','G','D','A','E','B','F♯','D♭','A♭','E♭','B♭','F'],
+      chromatic  : ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B']
+      // No custom key here; handled in logic below
+    };
+
+    // build 12 check‑boxes in a grid
+    function buildPolyBoxes(){
+      polyBox.innerHTML = "";
+      for(let i=1;i<=12;i++){
+        const lbl = document.createElement("label");
+        lbl.style.display = "flex";
+        lbl.style.alignItems = "center";
+        lbl.style.gap = "6px";
+        lbl.style.margin = "0";
+        lbl.style.fontSize = "14px";
+        lbl.style.fontWeight = "400";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "polyPt";
+        checkbox.dataset.idx = i;
+        // Assign unique ID for autosave/restore
+        checkbox.id = `polygon-point-${i}`;
+        // No checked attribute by default; leave unchecked by default
+        lbl.appendChild(checkbox);
+        const span = document.createElement("span");
+        span.textContent = `P${i}`;
+        lbl.appendChild(span);
+        polyBox.appendChild(lbl);
+      }
+    }
+    buildPolyBoxes();
+
+    // refresh labels when notation changes
+    function refreshPolyLabels(){
+      let set;
+      if (polygonNotationValue === "custom") {
+        set = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12"];
+      } else {
+        set = polySets[polygonNotationValue];
+      }
+      [...polyBox.querySelectorAll('label')].forEach((l,i)=>{
+        l.lastChild.textContent = set[i] || '';
+      });
+    }
+
+    function draw() {
+      const radius = parseInt(radiusSlider.value);
+      const fontsize = parseInt(fontsizeSlider.value);
+      const rotation = parseFloat(rotationSlider.value) * Math.PI / 180;
+      let labels;
+      // Map radio button value to sets
+      if (notationStyleValue === "custom") {
+        const raw = document.getElementById("customLabels").value.trim() || customLabelCache;
+        labels = raw.split(/,|\n/).map(s => s.trim()).filter(s => s.length);
+      } else if (notationStyleValue === "majscale") {
+        labels = ["maj7","maj7","ø7","m7","m7","m7","7"];
+      } else if (notationStyleValue === "relativeMinor") {
+        labels = ["m7","m7","7","maj7","maj7","ø7","m7"];
+      } else if (notationStyleValue === "numeric") {
+        labels = ["P1","P2","P3","P4","P5","P6","P7","P8","P9","P10","P11","P12"];
+      } else {
+        labels = sets[notationStyleValue] || ["P1","P2","P3","P4","P5","P6","P7","P8","P9","P10","P11","P12"];
+      }
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // --- Polygon drawing (BEHIND everything) ---
+      if (document.getElementById("showPolygon").checked) {
+        const stroke = 2; // fixed stroke width
+        const color = polygonColorPicker.value;
+        const points = [...polyBox.querySelectorAll('.polyPt')]
+                         .filter(cb=>cb.checked)
+                         .map(cb=> +cb.dataset.idx - 1);
+        // Use the circle radius so the polygon always fits inside the main circle
+        const polyRadiusRaw = parseInt(circleRadiusSlider.value);
+        const scale = canvas.height / 1080;
+        const polyRadius = (polyRadiusRaw - 2) * scale; // properly scaled
+        const polyRotation = parseFloat(rotationSlider.value) * Math.PI / 180;
+        if (points.length > 1) {
+          ctx.beginPath();
+          let firstX, firstY;
+          points.forEach((pt, i) => {
+            const angle = (pt / 12) * 2 * Math.PI - Math.PI / 2 + polyRotation;
+            const x = cx + Math.cos(angle) * polyRadius;
+            const y = cy + Math.sin(angle) * polyRadius;
+            if (i === 0) {
+              firstX = x;
+              firstY = y;
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.closePath();
+          if (polyFill.checked) {
+            ctx.fillStyle = color;
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = stroke;
+            ctx.stroke();
+          }
+        }
+      }
+
+      if (showCircle) {
+        const circleRadius = parseInt(circleRadiusSlider.value);
+        ctx.beginPath();
+        ctx.arc(cx, cy, circleRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = circleColorPicker.value;
+        ctx.lineWidth = parseInt(circleThicknessSlider.value);
+        ctx.stroke();
+      }
+
+      // Draw broken inner circle with spaced arrows (clockwise and segmented)
+      if (document.getElementById("showArrows").checked) {
+        const arrowCount = parseInt(arrowCountSlider.value);
+        const innerRadius = parseInt(arrowRadiusSlider.value);
+        const segmentAngle = (2 * Math.PI) / arrowCount;
+        const gapAngle = 15 / innerRadius; // 15px linear gap on arc
+        const arcLength = segmentAngle - gapAngle;
+        for (let i = 0; i < arrowCount; i++) {
+          // Start and end angles for arc segment
+          const startAngle = i * segmentAngle + gapAngle / 2 - Math.PI / 2;
+          const endAngle = (i + 1) * segmentAngle - gapAngle / 2 - Math.PI / 2;
+
+          // Draw arc segment
+          ctx.beginPath();
+          ctx.arc(cx, cy, innerRadius, startAngle, endAngle);
+          ctx.strokeStyle = arrowColorPicker.value;
+          ctx.lineWidth = parseInt(arrowThicknessSlider.value);
+          ctx.stroke();
+
+          // Arrowhead at end or start of segment, depending on arrowDirection
+          const arrowAngle = arrowDirection === 1 ? endAngle : startAngle;
+          const arrowX = cx + innerRadius * Math.cos(arrowAngle);
+          const arrowY = cy + innerRadius * Math.sin(arrowAngle);
+          const arrowSize = 8;
+          const tangentAngle = arrowAngle - arrowDirection * Math.PI / 2;
+
+          ctx.beginPath();
+          ctx.moveTo(
+            arrowX + arrowSize * Math.cos(tangentAngle - Math.PI / 6),
+            arrowY + arrowSize * Math.sin(tangentAngle - Math.PI / 6)
+          );
+          ctx.lineTo(arrowX, arrowY);
+          ctx.lineTo(
+            arrowX + arrowSize * Math.cos(tangentAngle + Math.PI / 6),
+            arrowY + arrowSize * Math.sin(tangentAngle + Math.PI / 6)
+          );
+          ctx.stroke();
+        }
+      }
+
+      ctx.font = `${fontsize}px "${fontSelect.value}"`;
+      ctx.fillStyle = colorPicker.value;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (showText) {
+        labels.forEach((label, i) => {
+          const angle = (i / labels.length) * 2 * Math.PI - Math.PI / 2 + rotation;
+          let x = cx + radius * Math.cos(angle);
+          let y = cy + radius * Math.sin(angle);
+          x += (labelOffsetX[i] || 0);
+          y += (labelOffsetY[i] || 0);
+          ctx.fillText(label, x, y);
+        });
+      }
+
+      // Draw central title
+      const tText = titleInput.value.trim();
+      if (tText && document.getElementById("showTitle").checked) {
+        ctx.font = `${titleSizeR.value}px "${titleFontSel.value}"`;
+        ctx.fillStyle = titleColor.value;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(tText, cx, cy);
+      }
+    }
+
+    function downloadPNG() {
+      const link = document.createElement("a");
+      link.download = "circle_diagram.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    // Sync sliders and number inputs
+    [radiusSlider, radiusNum].forEach(el => el.addEventListener("input", () => {
+      radiusSlider.value = radiusNum.value = el.value;
+      draw();
+    }));
+    [fontsizeSlider, fontsizeNum].forEach(el => el.addEventListener("input", () => {
+      fontsizeSlider.value = fontsizeNum.value = el.value;
+      draw();
+    }));
+    [rotationSlider, rotationNum].forEach(el => el.addEventListener("input", () => {
+      rotationSlider.value = rotationNum.value = el.value;
+      draw();
+    }));
+    [circleRadiusSlider, circleRadiusNum].forEach(el => el.addEventListener("input", () => {
+      circleRadiusSlider.value = circleRadiusNum.value = el.value;
+      draw();
+    }));
+
+
+    fontSelect.addEventListener("change", draw);
+
+    // Notation Style radio group logic
+    function handleNotationRadioChange(e) {
+      const prevStyle = notationStyleValue;
+      if (!e.target.checked) return;
+      notationStyleValue = e.target.value;
+      if (prevStyle === "custom") {
+        customLabelCache = document.getElementById("customLabels").value.trim();
+      }
+      // Show/hide controls based on notation style
+      const showCustom = notationStyleValue === "custom" || notationStyleValue === "majscale" || notationStyleValue === "relativeMinor";
+      document.getElementById("customInputLabel").style.display = showCustom ? "block" : "none";
+
+      // For majscale and relativeMinor, set default custom labels
+      if (notationStyleValue === "majscale") {
+        document.getElementById("customLabels").value = "maj7,maj7,ø7,m7,m7,m7,7";
+      }
+      if (notationStyleValue === "relativeMinor") {
+        document.getElementById("customLabels").value = "m7,m7,7,maj7,maj7,ø7,m7";
+      }
+      // For custom, restore from cache or default
+      if (notationStyleValue === "custom") {
+        document.getElementById("customLabels").value =
+          customLabelCache || "P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,P12";
+      }
+
+      // --- Apply dark mode style to textarea if needed ---
+      const textarea = document.getElementById("customLabels");
+      if (showCustom && textarea) {
+        // Determine if dark mode is enabled on body or controls-only
+        const body = document.body;
+        const isDark = body.classList.contains("dark-mode") || body.classList.contains("dark-controls-only");
+        if (isDark) {
+          textarea.style.backgroundColor = "#2b2b2b";
+          textarea.style.color = "#ffffff";
+          textarea.style.border = "1px solid #888";
+        } else {
+          textarea.style.backgroundColor = "";
+          textarea.style.color = "";
+          textarea.style.border = "";
+        }
+      }
+
+      draw();
+      refreshPolyLabels();
+    }
+    // Add event listeners to notation radio buttons
+    notationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+      radio.addEventListener('change', handleNotationRadioChange);
+    });
+    // Set notation radio group from autosave or null (default)
+    function setNotationRadioFromAutosave(data) {
+      let defaultVal = data?.notationStyle || "custom";
+      notationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+        radio.checked = (radio.value === defaultVal);
+      });
+      notationStyleValue = defaultVal;
+      handleNotationRadioChange({ target: notationRadioGroup.querySelector('input[type=radio][value="'+defaultVal+'"]') });
+    }
+
+    // Set polygon notation radio group from autosave or null (default)
+    function setPolygonNotationFromAutosave(data) {
+      let defaultVal = data?.polygonNotation || "custom";
+      polygonNotationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+        radio.checked = (radio.value === defaultVal);
+      });
+      polygonNotationValue = defaultVal;
+      handlePolygonNotationRadioChange({ target: polygonNotationRadioGroup.querySelector('input[type=radio][value="'+defaultVal+'"]') });
+    }
+    // document.getElementById("flipCheckbox").removeEventListener("input", ...);
+    const flipCb = document.getElementById("flipCheckbox");
+    if (flipCb) {
+      flipCb.addEventListener("change", () => {
+        flipOrder();
+        draw();
+      });
+    }
+    document.getElementById("customLabels").addEventListener("input", function() {
+      // Always update the diagram and customLabelCache, regardless of radio selection.
+      customLabelCache = this.value.trim();
+      // Switch to custom radio if not already
+      const radioCustom = document.getElementById("radio-custom") || notationRadioGroup.querySelector('input[type=radio][value="custom"]');
+      if (radioCustom) {
+        radioCustom.checked = true;
+      }
+      notationStyleValue = "custom";
+      draw();
+      refreshPolyLabels();
+    });
+    colorPicker.addEventListener("input", draw);
+    circleColorPicker.addEventListener("input", draw);
+
+    [circleThicknessSlider, circleThicknessNum].forEach(el => el.addEventListener("input", () => {
+      circleThicknessSlider.value = circleThicknessNum.value = el.value;
+      draw();
+    }));
+
+    // Sync title size range and number inputs
+    [titleSizeR, titleSizeN].forEach(el => el.addEventListener("input", () => {
+      titleSizeR.value = titleSizeN.value = el.value;
+      draw();
+    }));
+    // Sync arrow count range and number input
+    [arrowCountSlider, arrowCountNum].forEach(el => el.addEventListener("input", () => {
+      arrowCountSlider.value = arrowCountNum.value = el.value;
+      draw();
+    }));
+    // Sync arrow radius range and number input
+    [arrowRadiusSlider, arrowRadiusNum].forEach(el => el.addEventListener("input", () => {
+      arrowRadiusSlider.value = arrowRadiusNum.value = el.value;
+      draw();
+    }));
+    // Sync arrow thickness range and number input
+    [arrowThicknessSlider, arrowThicknessNum].forEach(el => el.addEventListener("input", () => {
+      arrowThicknessSlider.value = arrowThicknessNum.value = el.value;
+      draw();
+    }));
+    // Event listeners for title text, color, font
+    [titleInput, titleColor, titleFontSel].forEach(el => el.addEventListener("input", draw));
+
+    // Arrow color picker: update on input (and ensure value is assigned)
+    arrowColorPicker.addEventListener("input", (e) => {
+      arrowColorPicker.value = e.target.value;
+      draw();
+    });
+
+    // Show custom labels box if "custom" or "majscale" or "relativeMinor" is selected on load
+    if (notationStyleValue === "custom" || notationStyleValue === "majscale" || notationStyleValue === "relativeMinor") {
+      document.getElementById("customInputLabel").style.display = "block";
+      // Also apply dark mode styling on load
+      const textarea = document.getElementById("customLabels");
+      if (textarea) {
+        const body = document.body;
+        const isDark = body.classList.contains("dark-mode") || body.classList.contains("dark-controls-only");
+        if (isDark) {
+          textarea.style.backgroundColor = "#2b2b2b";
+          textarea.style.color = "#ffffff";
+          textarea.style.border = "1px solid #888";
+        } else {
+          textarea.style.backgroundColor = "";
+          textarea.style.color = "";
+          textarea.style.border = "";
+        }
+      }
+    } else {
+      document.getElementById("customInputLabel").style.display = "none";
+    }
+
+    // Set default state of global toggles for polygon, arrows, title text, text, and circle
+    document.getElementById("showPolygon").checked = false;
+    document.getElementById("showArrows").checked = false;
+    document.getElementById("showTitle").checked = false;
+    document.getElementById("showText").checked = true;
+    document.getElementById("showCircle").checked = true;
+
+    // Add event listeners for the checkboxes to trigger draw and update global flags
+    document.getElementById("showText").addEventListener("change", function (e) {
+      showText = e.target.checked;
+      draw();
+    });
+    document.getElementById("showCircle").addEventListener("change", function (e) {
+      showCircle = e.target.checked;
+      draw();
+    });
+    // The rest use only draw() because their flags are set in draw() using .checked
+    ["showPolygon", "showArrows", "showTitle"].forEach(id => {
+      document.getElementById(id).addEventListener("input", draw);
+    });
+
+    // Wait for Quicksand font to load before initial draw
+    document.fonts.load('16px "Quicksand"').then(() => document.fonts.ready).then(() => {
+      // Synchronize visibility flags with checkboxes (if present)
+      showCircle  = document.getElementById("showCircle") ? document.getElementById("showCircle").checked : true;
+      showText    = document.getElementById("showText") ? document.getElementById("showText").checked : true;
+      showPolygon = document.getElementById("showPolygon").checked;
+      showArrows  = document.getElementById("showArrows").checked;
+      showTitle   = document.getElementById("showTitle").checked;
+      draw();
+    });
+
+    function flipOrder() {
+      // Use notationStyleValue instead of undefined notationSelect
+      if (notationStyleValue === "custom") {
+        const raw = document.getElementById("customLabels").value;
+        const labels = raw.split(/,|\n/).map(s => s.trim()).filter(s => s.length > 0);
+        const first = labels[0];
+        const reversed = [first].concat(labels.slice(1).reverse());
+        document.getElementById("customLabels").value = reversed.join(",");
+      } else {
+        const currentSet = sets[notationStyleValue];
+        if (Array.isArray(currentSet)) {
+          const first = currentSet[0];
+          const reversed = [first].concat(currentSet.slice(1).reverse());
+          sets[notationStyleValue] = reversed;
+        }
+      }
+      labelOffsetX.fill(0);
+      labelOffsetY.fill(0);
+      offsetTable.querySelectorAll('input').forEach(inp=>inp.value=0);
+      draw();
+    }
+
+    async function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: [canvas.width, canvas.height]
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save("circle_diagram.pdf");
+    }
+
+    // Polygon controls: update on input (polygon points, fill, color)
+    [...polyBox.querySelectorAll('.polyPt'), polyFill, polygonColorPicker]
+      .forEach(el => el.addEventListener('input', draw));
+    // Polygon Notation radio group logic
+    function handlePolygonNotationRadioChange(e) {
+      if (!e.target.checked) return;
+      polygonNotationValue = e.target.value;
+      refreshPolyLabels();
+      draw();
+    }
+    polygonNotationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+      radio.addEventListener('change', handlePolygonNotationRadioChange);
+    });
+    // Set default checked
+    refreshPolyLabels();
+
+    // Tabbed interface logic with support for download and preset action buttons
+    document.querySelectorAll('.tab-bar .tab').forEach(button => {
+      button.addEventListener('click', () => {
+        const action = button.dataset.action;
+        const tabId = button.dataset.tab;
+
+        if (action === "exportPNG") return downloadPNG();
+        if (action === "exportPDF") return downloadPDF();
+
+        if (tabId) {
+          document.querySelectorAll('.tab-bar .tab').forEach(btn => btn.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(panel => panel.classList.remove('active'));
+          button.classList.add('active');
+          var tabPanel = document.getElementById(tabId);
+          if (tabPanel) tabPanel.classList.add('active');
+        }
+      });
+    });
+
+
+    // Attach Export PNG/PDF/JPG event listeners for floating controls buttons
+    document.getElementById("exportPngBtn")?.addEventListener("click", downloadPNG);
+    document.getElementById("exportPdfBtn")?.addEventListener("click", downloadPDF);
+    document.getElementById("exportJpgBtn")?.addEventListener("click", downloadJPG);
+
+    function downloadJPG() {
+      // Export current canvas with white background as JPG
+      const canvas = document.createElement("canvas");
+      const srcCanvas = document.getElementById("canvas");
+      canvas.width = srcCanvas.width;
+      canvas.height = srcCanvas.height;
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(srcCanvas, 0, 0);
+      const link = document.createElement("a");
+      link.download = "circle_diagram.jpg";
+      link.href = canvas.toDataURL("image/jpeg");
+      link.click();
+    }
+
+    // Separate event listeners for Preset Export/Import action buttons
+    document.querySelectorAll('.action-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const action = button.dataset.action;
+        if (action === "exportFile") return exportPresetFile();
+        if (action === "importFile") return triggerImport();
+      });
+    });
+
+    // --- PRESET SAVE/LOAD FUNCTIONS (global scope) ---
+    function savePreset() {
+      const preset = {};
+      document.querySelectorAll('.controls input, .controls select, .controls textarea').forEach(el => {
+        if (el.type === 'checkbox') {
+          preset[el.id] = el.checked;
+        } else {
+          preset[el.id] = el.value;
+        }
+      });
+      // Save radio button values for notation and polygon notation
+      preset['notationStyle'] = notationStyleValue;
+      preset['polygonNotation'] = polygonNotationValue;
+      localStorage.setItem('circleDiagramPreset', JSON.stringify(preset));
+      showToast('Progress saved!');
+    }
+
+    function loadPreset() {
+      const data = localStorage.getItem('circleDiagramPreset');
+      if (!data) {
+        showToast('No preset found.');
+        return;
+      }
+      const preset = JSON.parse(data);
+      Object.entries(preset).forEach(([id, value]) => {
+        if (id === "notationStyle") {
+          notationStyleValue = value;
+          notationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+            radio.checked = (radio.value === value);
+          });
+          handleNotationRadioChange({ target: notationRadioGroup.querySelector('input[type=radio][value="'+value+'"]'), });
+          return;
+        }
+        if (id === "polygonNotation") {
+          polygonNotationValue = value;
+          polygonNotationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+            radio.checked = (radio.value === value);
+          });
+          handlePolygonNotationRadioChange({ target: polygonNotationRadioGroup.querySelector('input[type=radio][value="'+value+'"]'), });
+          return;
+        }
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') {
+          el.checked = value;
+          el.dispatchEvent(new Event('change'));
+        } else {
+          el.value = value;
+          el.dispatchEvent(new Event('input'));
+        }
+      });
+      showToast('Previous loaded!');
+    }
+
+    // --- AUTOSAVE ON CHANGE ---
+    function autoSaveProgress() {
+      const preset = {};
+      document.querySelectorAll('.controls input, .controls select, .controls textarea')
+        .forEach(el => {
+          preset[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
+        });
+      // Save radio button values for notation and polygon notation
+      preset['notationStyle'] = notationStyleValue;
+      preset['polygonNotation'] = polygonNotationValue;
+      // --- Save all 12 polygon checkboxes (PolygonCheckbox1..12) ---
+      for (let i = 1; i <= 12; i++) {
+        const cb = document.getElementById(`polygon-point-${i}`);
+        if (cb) {
+          preset[`PolygonCheckbox${i}`] = cb.checked;
+        }
+      }
+      localStorage.setItem('autosave_preset', JSON.stringify(preset));
+    }
+    // Hook it to changes
+    document.querySelectorAll('.controls input, .controls select, .controls textarea')
+      .forEach(el => el.addEventListener('input', autoSaveProgress));
+    // Also hook radio buttons
+    notationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+      radio.addEventListener('change', autoSaveProgress);
+    });
+    polygonNotationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+      radio.addEventListener('change', autoSaveProgress);
+    });
+
+    // Toast notification function (now supports primary and optional secondary action buttons)
+    function showToast(message, actionLabel, actionCallback, secondaryLabel, secondaryCallback) {
+      const toast = document.getElementById('toast');
+      toast.innerHTML = ""; // Clear previous
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      // Add message
+      const msgSpan = document.createElement('span');
+      msgSpan.textContent = message;
+      toast.appendChild(msgSpan);
+      let timeout;
+      // If actionLabel/callback provided, show a button
+      if (actionLabel && typeof actionCallback === 'function') {
+        const btn = document.createElement('button');
+        btn.textContent = actionLabel;
+        btn.style.marginLeft = "14px";
+        btn.style.background = "#fff";
+        btn.style.color = "#222";
+        btn.style.border = "none";
+        btn.style.padding = "4px 14px";
+        btn.style.borderRadius = "4px";
+        btn.style.cursor = "pointer";
+        btn.style.fontWeight = "bold";
+        btn.addEventListener('click', () => {
+          toast.style.opacity = '0';
+          setTimeout(() => {
+            toast.style.display = 'none';
+            toast.innerHTML = "";
+            toast.style.transition = '';
+          }, 500);
+          actionCallback();
+        });
+        toast.appendChild(btn);
+        // If secondaryLabel provided, show a second button
+        if (secondaryLabel) {
+          const btn2 = document.createElement('button');
+          btn2.textContent = secondaryLabel;
+          btn2.style.marginLeft = "8px";
+          btn2.style.background = "#fff";
+          btn2.style.color = "#222";
+          btn2.style.border = "none";
+          btn2.style.padding = "4px 14px";
+          btn2.style.borderRadius = "4px";
+          btn2.style.cursor = "pointer";
+          btn2.style.fontWeight = "bold";
+          btn2.addEventListener('click', () => {
+            toast.style.opacity = '0';
+            setTimeout(() => {
+              toast.style.display = 'none';
+              toast.innerHTML = "";
+              toast.style.transition = '';
+            }, 500);
+            if (typeof secondaryCallback === 'function') secondaryCallback();
+          });
+          toast.appendChild(btn2);
+        }
+        // Don't auto-hide if confirmation
+      } else {
+        timeout = setTimeout(() => {
+          toast.style.transition = 'opacity 0.5s ease';
+          toast.style.opacity = '0';
+          setTimeout(() => {
+            toast.style.display = 'none';
+            toast.style.transition = '';
+            toast.innerHTML = "";
+          }, 500);
+        }, 2000);
+      }
+    }
+    // --- AUTOSAVE RESTORE PROMPT ON PAGE LOAD ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const autoSaved = localStorage.getItem('autosave_preset');
+      if (autoSaved) {
+        showToast("💾 Restore previous session?", "Restore", () => {
+          const preset = JSON.parse(autoSaved);
+          setNotationRadioFromAutosave(preset);
+          setPolygonNotationFromAutosave(preset);
+          // Restore polygon checkboxes from preset (if present)
+          for (let i = 1; i <= 12; i++) {
+            if (preset[`PolygonCheckbox${i}`] !== undefined) {
+              const cb = document.getElementById(`polygon-point-${i}`);
+              if (cb) cb.checked = preset[`PolygonCheckbox${i}`];
+            }
+          }
+          Object.keys(preset).forEach(id => {
+            if (id === "notationStyle" || id === "polygonNotation" || /^PolygonCheckbox\d+$/.test(id)) return; // already handled
+            const el = document.getElementById(id);
+            if (el) {
+              if (el.type === 'checkbox') el.checked = preset[id];
+              else el.value = preset[id];
+              el.dispatchEvent(new Event('input'));
+            }
+          });
+        }, "Dismiss", () => {
+          localStorage.removeItem("autosave_preset");
+          setNotationRadioFromAutosave(null); // Start with clean default
+          setPolygonNotationFromAutosave(null);
+          // Reset all polygon checkboxes to checked
+          for (let i = 1; i <= 12; i++) {
+            const cb = document.getElementById(`polygon-point-${i}`);
+            if (cb) {
+              cb.checked = true;
+              localStorage.removeItem(`PolygonCheckbox${i}`);
+            }
+          }
+        });
+      }
+    });
+
+    // Floating controls drag logic (allow free movement with top/left)
+    (function() {
+      const panel  = document.querySelector('.floating-controls');
+      const handle = document.querySelector('.drag-handle');
+      if (!panel || !handle) return;
+
+      let offsetX = 0, offsetY = 0, dragging = false;
+
+      handle.addEventListener('mousedown', e => {
+        dragging = true;
+        offsetX = e.clientX - panel.offsetLeft;
+        offsetY = e.clientY - panel.offsetTop;
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      function onMove(e) {
+        if (!dragging) return;
+        const newLeft = Math.min(Math.max(0, e.clientX - offsetX), window.innerWidth - panel.offsetWidth);
+        const newTop = Math.min(Math.max(0, e.clientY - offsetY), window.innerHeight - panel.offsetHeight);
+        panel.style.left = `${newLeft}px`;
+        panel.style.top = `${newTop}px`;
+        panel.style.bottom = 'auto';
+      }
+
+      function onUp() {
+        dragging = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+    })();
+
+    // Snap-to-corner button logic (now uses top/left for free movement)
+    document.querySelector('.snap-btn')?.addEventListener('click', () => {
+      const panel = document.querySelector('.floating-controls');
+      if (!panel) return;
+
+      const { innerWidth, innerHeight } = window;
+      const panelWidth = panel.offsetWidth;
+      const panelHeight = panel.offsetHeight;
+
+      const positions = [
+        { left: 0, top: innerHeight - panelHeight }, // bottom-left
+        { left: innerWidth - panelWidth, top: innerHeight - panelHeight }, // bottom-right
+        { left: 0, top: 0 }, // top-left
+        { left: innerWidth - panelWidth, top: 0 } // top-right
+      ];
+
+      panel._snapIndex = (panel._snapIndex || 0) + 1;
+      const pos = positions[panel._snapIndex % positions.length];
+
+      panel.style.left = `${pos.left}px`;
+      panel.style.top = `${pos.top}px`;
+      panel.style.bottom = 'auto';
+    });
+// --- NAMED PRESET LOGIC ---
+function getCurrentDiagramState() {
+  const preset = {};
+  document.querySelectorAll('.controls input, .controls select, .controls textarea').forEach(el => {
+    if (el.type === 'checkbox') {
+      preset[el.id] = el.checked;
+    } else {
+      preset[el.id] = el.value;
+    }
+  });
+  preset['notationStyle'] = notationStyleValue;
+  preset['polygonNotation'] = polygonNotationValue;
+  return preset;
+}
+function applyDiagramState(state) {
+  Object.entries(state).forEach(([id, value]) => {
+    if (id === "notationStyle") {
+      notationStyleValue = value;
+      notationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+        radio.checked = (radio.value === value);
+      });
+      handleNotationRadioChange({ target: notationRadioGroup.querySelector('input[type=radio][value="'+value+'"]'), });
+      return;
+    }
+    if (id === "polygonNotation") {
+      polygonNotationValue = value;
+      polygonNotationRadioGroup.querySelectorAll('input[type=radio]').forEach(radio => {
+        radio.checked = (radio.value === value);
+      });
+      handlePolygonNotationRadioChange({ target: polygonNotationRadioGroup.querySelector('input[type=radio][value="'+value+'"]'), });
+      return;
+    }
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      el.checked = value;
+      el.dispatchEvent(new Event('change'));
+    } else {
+      el.value = value;
+      el.dispatchEvent(new Event('input'));
+    }
+  });
+}
+function toast(msg) {
+  showToast(msg);
+}
+const presetNameInput = document.getElementById('presetNameInput');
+const presetCategoryInput = document.getElementById('presetCategoryInput');
+const savePresetBtn = document.getElementById('savePresetBtn');
+const loadPresetBtn = document.getElementById('loadPresetBtn');
+const presetDropdown = document.getElementById('presetDropdown');
+const presetCategoryDropdown = document.getElementById('presetCategoryDropdown');
+
+function updateCategoryDropdown() {
+  const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const categories = [...new Set(saved.map(p => p.category || "Uncategorized"))];
+  presetCategoryDropdown.innerHTML = '<option disabled selected>Select category...</option>';
+  categories.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    presetCategoryDropdown.appendChild(opt);
+  });
+  updatePresetDropdown(); // reset preset dropdown too
+}
+
+function updatePresetDropdown(category = null) {
+  const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const filtered = category ? saved.filter(p => (p.category || "Uncategorized") === category) : [];
+  presetDropdown.innerHTML = '<option disabled selected>Select preset...</option>';
+  filtered.forEach(preset => {
+    const opt = document.createElement("option");
+    opt.value = preset.name;
+    opt.textContent = preset.name;
+    presetDropdown.appendChild(opt);
+  });
+}
+
+presetCategoryDropdown?.addEventListener("change", () => {
+  updatePresetDropdown(presetCategoryDropdown.value);
+});
+
+savePresetBtn?.addEventListener("click", () => {
+  const name = presetNameInput.value.trim();
+  const category = presetCategoryInput.value.trim() || "Uncategorized";
+  if (!name) return alert("Please enter a preset name.");
+  const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const state = getCurrentDiagramState();
+  const updated = saved.filter(p => !(p.name === name && (p.category || "Uncategorized") === category));
+  updated.push({ name, category, data: state });
+  localStorage.setItem("namedPresets", JSON.stringify(updated));
+  updateCategoryDropdown();
+  toast("Preset saved");
+});
+
+loadPresetBtn?.addEventListener("click", () => {
+  const name = presetDropdown.value;
+  const category = presetCategoryDropdown.value;
+  const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const preset = saved.find(p => p.name === name && (p.category || "Uncategorized") === category);
+  if (preset) {
+    applyDiagramState(preset.data);
+    toast(`Preset "${name}" loaded`);
+  }
+});
+
+// On page load, update category dropdown
+updateCategoryDropdown();
+
+// Dark mode toggle button logic
+document.getElementById("toggleDarkModeBtn").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  // Also update custom label textarea style if visible and relevant mode is active
+  const notation = notationStyleValue;
+  const showCustom = notation === "custom" || notation === "majscale" || notation === "relativeMinor";
+  const textarea = document.getElementById("customLabels");
+  if (showCustom && textarea) {
+    const body = document.body;
+    const isDark = body.classList.contains("dark-mode") || body.classList.contains("dark-controls-only");
+    if (isDark) {
+      textarea.style.backgroundColor = "#2b2b2b";
+      textarea.style.color = "#ffffff";
+      textarea.style.border = "1px solid #888";
+    } else {
+      textarea.style.backgroundColor = "";
+      textarea.style.color = "";
+      textarea.style.border = "";
+    }
+  }
+});
+
+// Dark Controls Only checkbox logic
+document.getElementById("darkControlsOnly").addEventListener("change", function () {
+  document.body.classList.toggle("dark-controls-only", this.checked);
+  // Also update custom label textarea style if visible and relevant mode is active
+  const notation = notationStyleValue;
+  const showCustom = notation === "custom" || notation === "majscale" || notation === "relativeMinor";
+  const textarea = document.getElementById("customLabels");
+  if (showCustom && textarea) {
+    const body = document.body;
+    const isDark = body.classList.contains("dark-mode") || body.classList.contains("dark-controls-only");
+    if (isDark) {
+      textarea.style.backgroundColor = "#2b2b2b";
+      textarea.style.color = "#ffffff";
+      textarea.style.border = "1px solid #888";
+    } else {
+      textarea.style.backgroundColor = "";
+      textarea.style.color = "";
+      textarea.style.border = "";
+    }
+  }
+});
+</script>
+<script>
+// --- Extended Named Preset Controls: Delete/Rename ---
+const deletePresetBtn = document.getElementById('deletePresetBtn');
+const renamePresetBtn = document.getElementById('renamePresetBtn');
+
+deletePresetBtn?.addEventListener("click", () => {
+  const name = presetDropdown.value;
+  const category = presetCategoryDropdown.value;
+  if (!name || name === "Select preset...") return alert("Please select a preset to delete.");
+  if (!category || category === "Select category...") return alert("Please select a category.");
+  if (!confirm(`Are you sure you want to delete "${name}" in "${category}"?`)) return;
+  const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const updated = saved.filter(p => !(p.name === name && (p.category || "Uncategorized") === category));
+  localStorage.setItem("namedPresets", JSON.stringify(updated));
+  updateCategoryDropdown();
+  toast(`Deleted "${name}"`);
+});
+
+renamePresetBtn?.addEventListener("click", () => {
+  const name = presetDropdown.value;
+  const category = presetCategoryDropdown.value;
+  if (!name || name === "Select preset...") return alert("Please select a preset to rename.");
+  if (!category || category === "Select category...") return alert("Please select a category.");
+  const newName = prompt("Enter new name:", name);
+  if (!newName || newName.trim() === name) return;
+  const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const preset = saved.find(p => p.name === name && (p.category || "Uncategorized") === category);
+  if (!preset) return;
+  const updated = saved.filter(p => !(p.name === name && (p.category || "Uncategorized") === category));
+  preset.name = newName.trim();
+  updated.push(preset);
+  localStorage.setItem("namedPresets", JSON.stringify(updated));
+  updateCategoryDropdown();
+  toast(`Renamed to "${newName}"`);
+});
+
+// --- Export/Import Named Presets ---
+const exportPresetsBtn = document.getElementById('exportPresetsBtn');
+const importPresetsBtn = document.getElementById('importPresetsBtn');
+const importPresetsInput = document.getElementById('importPresetsInput');
+
+exportPresetsBtn?.addEventListener("click", () => {
+  const presets = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+  const blob = new Blob([JSON.stringify(presets, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "circle_presets.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Presets exported");
+});
+
+importPresetsBtn?.addEventListener("click", () => {
+  importPresetsInput.click();
+});
+
+importPresetsInput?.addEventListener("change", async () => {
+  const file = importPresetsInput.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const imported = JSON.parse(text);
+    const existing = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+    const merged = [...existing];
+
+    imported.forEach(newPreset => {
+      const index = merged.findIndex(p =>
+        p.name === newPreset.name && (p.category || "Uncategorized") === (newPreset.category || "Uncategorized")
+      );
+      if (index !== -1) {
+        merged[index] = newPreset;
+      } else {
+        merged.push(newPreset);
+      }
+    });
+
+    localStorage.setItem("namedPresets", JSON.stringify(merged));
+    updateCategoryDropdown();
+    toast("Presets imported");
+  } catch (err) {
+    alert("Failed to import presets: " + err.message);
+  }
+});
+</script>
+  <div id="toast" style="position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 6px; font-size: 14px; display: none; z-index: 9999;"></div>
+  <!-- (Removed duplicate/unused global toggles for polygon, arrows, and title text) -->
+
+  <footer style="text-align: center; font-size: 0.8em; margin-top: 40px; color: gray;">
+    &copy; 2025 JPMedia. All rights reserved.<br>
+    Version: v2.0
+  </footer>
+
+  <script>
+    // --- EXPORT/IMPORT FILE FUNCTIONS ---
+    function exportPresetFile() {
+      // Build preset object and add version tag
+      const preset = {};
+      document.querySelectorAll('.controls input, .controls select, .controls textarea')
+        .forEach(el => {
+          preset[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
+        });
+      // Extract version from h2 (e.g. "Circle Diagram Generator V2.0")
+      const h2 = document.querySelector('h2');
+      const versionMatch = h2 ? h2.textContent.match(/V\s*([\d.]+)/i) : null;
+      preset.version = versionMatch ? versionMatch[1] : "unknown";
+
+      // Default timestamped filename
+      const now = new Date();
+      const timestamp = now.toISOString().slice(0,16).replace(/[:T]/g, "-");
+      let defaultName = `circle_preset_v${preset.version}_${timestamp}.json`;
+
+      // Prompt for filename with timestamp prefilled
+      let filename = prompt("Enter a name for your preset file:", defaultName);
+      if (!filename) return;
+      if (!filename.endsWith(".json")) filename += ".json";
+
+      const blob = new Blob([JSON.stringify(preset, null, 2)], {type:"application/json"});
+      const url  = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('Progress exported!');
+    }
+
+    function triggerImport() {
+      const fileInput = document.getElementById('importFileInput');
+      fileInput.value = '';
+      fileInput.click();
+    }
+
+    document.getElementById('importFileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const preset = JSON.parse(reader.result);
+          // --- Version compatibility check ---
+          const h2 = document.querySelector('h2');
+          const appVersionMatch = h2 ? h2.textContent.match(/V\s*([\d.]+)/i) : null;
+          const appVersion = appVersionMatch ? appVersionMatch[1] : "unknown";
+          const fileVersion = preset.version || "unknown";
+
+          if (fileVersion !== appVersion) {
+            if (fileVersion === "unknown") {
+              showToast("⚠️ Unknown preset version — import with caution.");
+            } else {
+              showToast(`⚠️ Preset is from v${fileVersion} — may not fully match v${appVersion}.`);
+            }
+          }
+          // --- Apply preset values ---
+          Object.entries(preset).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.type === 'checkbox') {
+              el.checked = value;
+              el.dispatchEvent(new Event('change'));
+            } else {
+              el.value = value;
+              el.dispatchEvent(new Event('input'));
+            }
+          });
+          // --- Clean UI Rebuild After Restore ---
+          setTimeout(() => {
+            const notationValue = document.getElementById("notation")?.value;
+            const polyNotationValue = document.getElementById("polygonNotation")?.value;
+
+            if (notationValue && typeof buildTextBoxes === "function") {
+              buildTextBoxes(notationValue);
+            }
+
+            if (polyNotationValue && typeof buildPolyBoxes === "function") {
+              buildPolyBoxes(polyNotationValue);
+            }
+          }, 500);
+          showToast('Previous loaded from file!');
+        } catch (err) {
+          showToast('Invalid preset file');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // --- SETTINGS TAB BUTTONS LOGIC ---
+    document.getElementById("clearAutosaveBtn").addEventListener("click", function() {
+      localStorage.removeItem("autosave_preset");
+      showToast("Autosave cleared.");
+    });
+
+    document.getElementById("resetDiagramBtn").addEventListener("click", function() {
+      // Clear autosave
+      localStorage.removeItem("autosave_preset");
+      // Reset all inputs/selects/textarea to their default values
+      document.querySelectorAll('.controls input, .controls select, .controls textarea').forEach(el => {
+        // Only skip file inputs
+        if (el.type === "file") return;
+        if (el.type === "checkbox") {
+          // Try to set checked to defaultChecked
+          el.checked = !!el.defaultChecked;
+          el.dispatchEvent(new Event('change'));
+        } else if (el.tagName === "SELECT") {
+          // Reset to first option or defaultSelected
+          let found = false;
+          for (let i = 0; i < el.options.length; i++) {
+            if (el.options[i].defaultSelected) {
+              el.selectedIndex = i;
+              found = true;
+              break;
+            }
+          }
+          if (!found) el.selectedIndex = 0;
+          el.dispatchEvent(new Event('input'));
+        } else if (el.tagName === "TEXTAREA") {
+          el.value = el.defaultValue;
+          el.dispatchEvent(new Event('input'));
+        } else {
+          el.value = el.defaultValue;
+          el.dispatchEvent(new Event('input'));
+        }
+      });
+      document.getElementById("showText").checked = true;
+      document.getElementById("showCircle").checked = true;
+      document.getElementById("showTitle").checked = false;
+      document.getElementById("showArrows").checked = false;
+      document.getElementById("showPolygon").checked = false;
+      // Also trigger UI updates/diagram refresh
+      document.getElementById("showText").dispatchEvent(new Event('change'));
+      document.getElementById("showCircle").dispatchEvent(new Event('change'));
+      document.getElementById("showTitle").dispatchEvent(new Event('change'));
+      document.getElementById("showArrows").dispatchEvent(new Event('change'));
+      document.getElementById("showPolygon").dispatchEvent(new Event('change'));
+      // Reset label offsets
+      if (typeof labelOffsetX !== "undefined" && typeof labelOffsetY !== "undefined") {
+        labelOffsetX.fill(0);
+        labelOffsetY.fill(0);
+        if (offsetTable) {
+          offsetTable.querySelectorAll('input').forEach(inp => { inp.value = 0; });
+        }
+      }
+      // Optionally clear the canvas
+      if (typeof ctx !== "undefined" && typeof canvas !== "undefined") {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      draw();
+      showToast("Diagram reset to defaults.");
+    });
+  </script>
+</body>
+</html>
+</script>
+<script>
+// --- Default Preset Controls ---
+const setDefaultPresetBtn = document.getElementById("setDefaultPresetBtn");
+const clearDefaultPresetBtn = document.getElementById("clearDefaultPresetBtn");
+
+setDefaultPresetBtn?.addEventListener("click", () => {
+  const name = presetDropdown.value;
+  const category = presetCategoryDropdown.value;
+  if (!name || name === "Select preset...") return alert("Please select a preset to set as default.");
+  if (!category || category === "Select category...") return alert("Please select a category.");
+  localStorage.setItem("defaultPresetName", name);
+  localStorage.setItem("defaultPresetCategory", category);
+  toast(`Default preset set to "${name}"`);
+});
+
+clearDefaultPresetBtn?.addEventListener("click", () => {
+  localStorage.removeItem("defaultPresetName");
+  localStorage.removeItem("defaultPresetCategory");
+  toast("Default preset cleared");
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  const defaultName = localStorage.getItem("defaultPresetName");
+  const defaultCategory = localStorage.getItem("defaultPresetCategory");
+  if (defaultName && defaultCategory) {
+    const saved = JSON.parse(localStorage.getItem("namedPresets") || "[]");
+    const preset = saved.find(p => p.name === defaultName && (p.category || "Uncategorized") === defaultCategory);
+    if (preset) {
+      applyDiagramState(preset.data);
+      toast(`Default preset "${defaultName}" loaded`);
+    }
+  }
+});
+    /* --- Dark mode for main textarea in Text Input tab --- */
+    body.dark-mode #customLabels,
+    body.dark-controls-only .floating-controls #customLabels {
+      background-color: #2b2b2b !important;
+      color: #ffffff !important;
+      border: 1px solid #888 !important;
+    }

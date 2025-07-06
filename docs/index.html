@@ -56,6 +56,19 @@
       cursor: pointer;
       margin-left: 10px;
     }
+    .min-btn {
+      float: right;
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    /* Hide the main controls area when the panel is minimized */
+    .floating-controls.minimized .controls {
+      display: none;
+    }
     .controls label {
       display: flex;
       flex-direction: column;
@@ -297,9 +310,25 @@
   <h2>Circle Diagram Generator v2.0</h2>
     <div class="floating-controls">
       <div class="drag-handle">
-        Controls ✥ drag me
-        <button class="snap-btn" title="Snap to corner">📌</button>
+        <span id="dragHandleIcon"></span>
+        <button class="min-btn" title="Minimize">➖</button><button class="snap-btn" title="Snap to corner">📌</button>
       </div>
+  <script>
+    // Set up the drag handle icon with subtle style
+    (function () {
+      var dragHandle = document.getElementById('dragHandleIcon');
+      if (dragHandle) {
+        dragHandle.innerHTML = '&#9776;';
+        dragHandle.style.fontSize = '16px';
+        dragHandle.style.cursor = 'grab';
+        dragHandle.style.opacity = '0.75';
+        dragHandle.style.marginRight = '6px';
+        dragHandle.style.userSelect = 'none';
+        dragHandle.style.verticalAlign = 'middle';
+        dragHandle.style.display = 'inline-block';
+      }
+    })();
+  </script>
     <div class="controls">
     <div class="tab-bar" style="gap: 8px 12px;">
       <button class="tab active" data-tab="textInputTab">Text Input</button>
@@ -1432,15 +1461,15 @@
 
       let offsetX = 0, offsetY = 0, dragging = false;
 
-      handle.addEventListener('mousedown', e => {
+      handle.addEventListener('mousedown', function(e) {
         dragging = true;
         offsetX = e.clientX - panel.offsetLeft;
         offsetY = e.clientY - panel.offsetTop;
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
       });
 
-      function onMove(e) {
+      function onMouseMove(e) {
         if (!dragging) return;
         const newLeft = Math.min(Math.max(0, e.clientX - offsetX), window.innerWidth - panel.offsetWidth);
         const newTop = Math.min(Math.max(0, e.clientY - offsetY), window.innerHeight - panel.offsetHeight);
@@ -1449,14 +1478,58 @@
         panel.style.bottom = 'auto';
       }
 
-      function onUp() {
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
         dragging = false;
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
       }
     })();
 
-    // Snap-to-corner button logic (now uses top/left for free movement)
+    // --- Snap panel to closest corner (top-left and top-right only) ---
+    function snapToClosestCorner() {
+      const floatingControls = document.querySelector('.floating-controls');
+      if (!floatingControls) return;
+      const panelRect = floatingControls.getBoundingClientRect();
+      const windowWidth = window.innerWidth;
+
+      const distanceToLeft = panelRect.left;
+      const distanceToRight = windowWidth - panelRect.right;
+
+      if (distanceToLeft < distanceToRight) {
+        floatingControls.style.top = '10px';
+        floatingControls.style.left = '10px';
+        floatingControls.style.right = 'auto';
+        floatingControls.style.bottom = 'auto';
+      } else {
+        floatingControls.style.top = '10px';
+        floatingControls.style.right = '10px';
+        floatingControls.style.left = 'auto';
+        floatingControls.style.bottom = 'auto';
+      }
+    }
+
+    // Minimize / restore floating controls
+    (function () {
+      const panel  = document.querySelector('.floating-controls');
+      const minBtn = document.querySelector('.min-btn');
+      if (!panel || !minBtn) return;
+
+      function toggleMin() {
+        panel.classList.toggle('minimized');
+        if (panel.classList.contains('minimized')) {
+          minBtn.title = 'Expand';
+          minBtn.textContent = '➕';
+          snapToClosestCorner();
+        } else {
+          minBtn.title = 'Minimize';
+          minBtn.textContent = '➖';
+        }
+      }
+
+      minBtn.addEventListener('click', toggleMin);
+    })();
+
+    // Snap-to-corner button logic (cycles through four corners)
     document.querySelector('.snap-btn')?.addEventListener('click', () => {
       const panel = document.querySelector('.floating-controls');
       if (!panel) return;
@@ -1478,6 +1551,7 @@
       panel.style.left = `${pos.left}px`;
       panel.style.top = `${pos.top}px`;
       panel.style.bottom = 'auto';
+      panel.style.right = 'auto';
     });
 // --- NAMED PRESET LOGIC ---
 function getCurrentDiagramState() {
@@ -1718,7 +1792,6 @@ importPresetsInput?.addEventListener("change", async () => {
 });
 </script>
   <div id="toast" style="position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 6px; font-size: 14px; display: none; z-index: 9999;"></div>
-  <!-- (Removed duplicate/unused global toggles for polygon, arrows, and title text) -->
 
   <footer style="text-align: center; font-size: 0.8em; margin-top: 40px; color: gray;">
     &copy; 2025 JPMedia. All rights reserved.<br>

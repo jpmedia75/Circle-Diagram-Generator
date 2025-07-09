@@ -1584,27 +1584,14 @@
       }
     })();
 
-    // --- Snap panel to nearest top corner (top-left or top-right only) ---
+    // --- Snap panel always to top-left corner ---
     function snapToClosestCorner() {
       const floatingControls = document.querySelector('.floating-controls');
       if (!floatingControls) return;
-      const rect = floatingControls.getBoundingClientRect();
-      const windowWidth = window.innerWidth;
-
-      const distanceToLeft = rect.left;
-      const distanceToRight = windowWidth - rect.right;
-
-      if (distanceToLeft < distanceToRight) {
-        floatingControls.style.top = '10px';
-        floatingControls.style.left = '10px';
-        floatingControls.style.right = 'auto';
-        floatingControls.style.bottom = 'auto';
-      } else {
-        floatingControls.style.top = '10px';
-        floatingControls.style.right = '10px';
-        floatingControls.style.left = 'auto';
-        floatingControls.style.bottom = 'auto';
-      }
+      floatingControls.style.top = '10px';
+      floatingControls.style.left = '10px';
+      floatingControls.style.right = 'auto';
+      floatingControls.style.bottom = 'auto';
     }
 
     // Minimize / restore floating controls
@@ -1628,27 +1615,12 @@
       minBtn.addEventListener('click', toggleMin);
     })();
 
-    // Snap-to-corner button logic (rotates through all four corners)
+    // Snap-to-corner button logic (always snaps to top-left)
     document.querySelector('.snap-btn')?.addEventListener('click', () => {
       const panel = document.querySelector('.floating-controls');
       if (!panel) return;
-
-      const { innerWidth, innerHeight } = window;
-      const panelWidth = panel.offsetWidth;
-      const panelHeight = panel.offsetHeight;
-
-      const positions = [
-        { left: 10, top: 10 }, // top-left
-        { left: innerWidth - panelWidth - 10, top: 10 }, // top-right
-        { left: 10, top: innerHeight - panelHeight - 10 }, // bottom-left
-        { left: innerWidth - panelWidth - 10, top: innerHeight - panelHeight - 10 } // bottom-right
-      ];
-
-      panel._snapIndex = (panel._snapIndex || 0) + 1;
-      const pos = positions[panel._snapIndex % positions.length];
-
-      panel.style.left = `${pos.left}px`;
-      panel.style.top = `${pos.top}px`;
+      panel.style.top = '10px';
+      panel.style.left = '10px';
       panel.style.right = 'auto';
       panel.style.bottom = 'auto';
     });
